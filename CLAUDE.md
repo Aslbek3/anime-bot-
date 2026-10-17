@@ -76,3 +76,45 @@ Botdan adminga ketgan xabar matnida `#m<id>` belgisi bo'ladi. Admin o'sha xabarg
 reply qilsa, `handlers/murojat.py` dagi `admin_javobi` filtri id ni ajratib oladi
 va javobni userga yuboradi. Shuning uchun murojaat xabarlaridan `#m<id>` ni olib
 tashlamang.
+
+## Qilingan ishlar
+
+**2026-10-17 — loyiha noldan qurildi**
+- aiogram 3 + aiosqlite + PM2 skeleti: `main.py`, `config.py`, `db.py`, `ui.py`,
+  `middlewares.py` va 4 ta handler moduli (kino, qidiruv, murojat, admin).
+- Baza: 5 jadval (`serials`, `episodes`, `users`, `progress`, `murojat`).
+  `manba_url`, `qoshgan_user_id`, `holat` ustunlari kelajak uchun bo'sh qoldirildi.
+- Foydalanuvchi qismi: davom ettirish tugmasi, 8 tadan sahifalangan ro'yxat,
+  serial kartochkasi (poster + tavsif + qismlar), arxiv kanaldan `copy_message`
+  bilan video, progress yozuvi, LIKE qidiruv, murojaat oqimi.
+- Admin panel: serial qo'shish FSM, forward orqali qism qo'shish,
+  tahrirlash/o'chirish, statistika, chunked tarqatish, murojatlar.
+- `.env.example`, `requirements.txt`, `ecosystem.config.js`, `README.md`.
+
+**2026-10-17 — interfeys to'liq reply tugmalarga o'tkazildi**
+- Inline tugmalar va callback data butunlay olib tashlandi (foydalanuvchi talabi).
+- Callback o'rniga ekran konteksti FSM da: `nav_ekran`, `nav_page`, `nav_serial`,
+  `nav_qism`. Bir xil tugma (`⬅️`, `🎬 <nom>`) turli ekranda turlicha ishlashi
+  `ui.ekran(...)` filtri orqali hal qilindi.
+- Router tartibi `admin → kino → murojat → qidiruv` ga o'zgardi: admin ekranidagi
+  tugmalar user handlerlariga tushib ketmasligi uchun.
+- Serial tugmasida id yo'q, shuning uchun `db.get_serial_by_name()` qo'shildi.
+
+**2026-10-17 — navigatsiya "sakrashi" tuzatildi**
+- Avvalgi versiya har bosishda eski ekranni va foydalanuvchi xabarini o'chirib,
+  yangisini chizar edi — noqulay bo'ldi, butunlay olib tashlandi.
+- `ui.kb_if_new()` qo'shildi: klaviatura imzosi (`kb_imzo`) bir xil bo'lsa
+  `reply_markup` yuborilmaydi, Telegram esa mavjud klaviaturani joyida qoldiradi.
+
+**Tekshirilgan**
+Soxta Telegram sessiyasi bilan uchidan-uchiga sinov o'tkazildi (sinov fayli
+repoda emas, vaqtinchalik papkada): /start, sahifalash, qism yuborish va
+chekkadagi tugmalar, 📋 Qismlar, davom ettirish, qidiruv, murojaat → admin →
+reply → userga javob, admin panelining barcha bo'limlari, oddiy userga admin
+panel ko'rinmasligi, hech qanday xabar o'chirilmasligi.
+
+**Ochiq ishlar**
+- Repoda avtomatik test yo'q — o'zgartirgandan keyin qo'lda sinang.
+- Tarqatishda bloklagan userlar faqat sanaladi; `users` da "faol" bayrog'i yo'q.
+- MemoryStorage ishlatiladi: bot qayta ishga tushsa `nav_*` konteksti yo'qoladi
+  (foydalanuvchi `/start` bossa tiklanadi).
