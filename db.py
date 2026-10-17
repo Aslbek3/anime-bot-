@@ -53,6 +53,20 @@ CREATE TABLE IF NOT EXISTS murojat (
     created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS yuklash_navbat (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    manba_url    TEXT NOT NULL,
+    serial_id    INTEGER REFERENCES serials(id) ON DELETE SET NULL,
+    qism_raqami  INTEGER,
+    holat        TEXT DEFAULT 'navbatda',   -- navbatda / yuklanmoqda / tayyor / xato
+    kanal_msg_id INTEGER,
+    xato_matni   TEXT,
+    created_at   TEXT DEFAULT CURRENT_TIMESTAMP,
+    tugagan_at   TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_navbat_url ON yuklash_navbat(manba_url);
+CREATE INDEX IF NOT EXISTS idx_navbat_holat ON yuklash_navbat(holat, id);
 CREATE INDEX IF NOT EXISTS idx_episodes_serial ON episodes(serial_id, qism_raqami);
 CREATE INDEX IF NOT EXISTS idx_progress_user ON progress(user_id, yangilangan);
 """
@@ -105,6 +119,10 @@ async def save_user(user_id: int, username: str | None, ism: str | None) -> None
     )
 
 
+async def get_user(user_id: int):
+    return await _one("SELECT * FROM users WHERE user_id = ?", (user_id,))
+
+
 async def count_users() -> int:
     return (await _one("SELECT COUNT(*) AS n FROM users"))["n"]
 
@@ -127,22 +145,28 @@ async def add_serial(nom, tavsif, poster_file_id, janr, yil) -> int:
     )
 
 
+# Foydalanuvchiga ko'rinadigan seriallar: eski yozuvlarda holat bo'sh bo'lishi mumkin
+KORINADI = "(holat IS NULL OR holat = '' OR holat = 'tasdiqlangan')"
+
+
 async def get_serial(serial_id: int):
     return await _one("SELECT * FROM serials WHERE id = ?", (serial_id,))
 
 
 async def get_serial_by_name(nom: str):
     """Reply tugmalarda id yo'q — serial nomi bo'yicha topamiz."""
-    return await _one("SELECT * FROM serials WHERE nom = ? ORDER BY id LIMIT 1", (nom,))
+    return await _one(
+        f"SELECT * FROM serials WHERE nom = ? AND {KORINADI} ORDER BY id LIMIT 1", (nom,)
+    )
 
 
 async def count_serials() -> int:
-    return (await _one("SELECT COUNT(*) AS n FROM serials"))["n"]
+    return (await _one(f"SELECT COUNT(*) AS n FROM serials WHERE {KORINADI}"))["n"]
 
 
 async def list_serials(offset: int, limit: int):
     return await _all(
-        "SELECT * FROM serials ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?",
+        f"SELECT * FROM serials WHERE {KORINADI} ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?",
         (limit, offset),
     )
 
@@ -150,7 +174,7 @@ async def list_serials(offset: int, limit: int):
 async def search_serials(soz: str, limit: int = 20):
     naqsh = f"%{soz}%"
     return await _all(
-        "SELECT * FROM serials WHERE nom LIKE ? OR janr LIKE ? ORDER BY nom LIMIT ?",
+        f"SELECT * FROM serials WHERE (nom LIKE ? OR janr LIKE ?) AND {KORINADI} ORDER BY nom LIMIT ?",
         (naqsh, naqsh, limit),
     )
 
@@ -291,3 +315,106 @@ async def unanswered_murojat(limit: int = 20):
         "SELECT * FROM murojat WHERE holat = 'yangi' ORDER BY created_at DESC LIMIT ?",
         (limit,),
     )
+
+
+# -------------------------------------------------- yuklash navbati
+
+async def navbat_kesh(manba_url: str):
+    """Shu URL avval muvaffaqiyatli yuklangan bo'lsa — o'sha yozuv (qayta yuklamaymiz)."""
+    return await _one(
+        "SELECT * FROM yuklash_navbat WHERE manba_url = ? AND holat = 'tayyor' ORDER BY id DESC LIMIT 1",
+        (manba_url,),
+    )
+
+
+async def navbat_bormi(manba_url: str):
+    """Shu URL navbatda yoki yuklanayotgan bo'lsa — o'sha yozuv."""
+    return await _one(
+        "SELECT * FROM yuklash_navbat WHERE manba_url = ? AND holat IN ('navbatda', 'yuklanmoqda') LIMIT 1",
+        (manba_url,),
+    )
+
+
+async def navbat_qosh(manba_url: str, serial_id: int | None = None, qism_raqami: int | None = None) -> int:
+    return await _run(
+        "INSERT INTO yuklash_navbat (manba_url, serial_id, qism_raqami) VALUES (?, ?, ?)",
+        (manba_url, serial_id, qism_raqami),
+    )
+
+
+async def navbat_keyingi():
+    """Navbatdagi eng eski vazifa."""
+    return await _one(
+        "SELECT * FROM yuklash_navbat WHERE holat = 'navbatda' ORDER BY id LIMIT 1"
+    )
+
+
+async def navbat_holat(
+    navbat_id: int,
+    holat: str,
+    kanal_msg_id: int | None = None,
+    xato_matni: str | None = None,
+) -> None:
+    tugagan = "CURRENT_TIMESTAMP" if holat in {"tayyor", "xato"} else "tugagan_at"
+    await _run(
+        f"""
+        UPDATE yuklash_navbat
+        SET holat = ?, kanal_msg_id = COALESCE(?, kanal_msg_id),
+            xato_matni = ?, tugagan_at = {tugagan}
+        WHERE id = ?
+        """,
+        (holat, kanal_msg_id, xato_matni, navbat_id),
+    )
+
+
+async def navbat_sanoq() -> dict[str, int]:
+    satrlar = await _all("SELECT holat, COUNT(*) AS n FROM yuklash_navbat GROUP BY holat")
+    return {r["holat"]: r["n"] for r in satrlar}
+
+
+async def navbat_royxat(holat: str, limit: int = 10):
+    return await _all(
+        "SELECT * FROM yuklash_navbat WHERE holat = ? ORDER BY id DESC LIMIT ?",
+        (holat, limit),
+    )
+
+
+async def navbat_tiklash() -> None:
+    """Bot qayta ishga tushganda yarim qolgan vazifalarni navbatga qaytaradi."""
+    await _run("UPDATE yuklash_navbat SET holat = 'navbatda' WHERE holat = 'yuklanmoqda'")
+
+
+# ---------------------------------------------------------- takliflar
+
+async def taklif_qosh(nom: str, tavsif: str | None, manba_url: str | None, user_id: int) -> int:
+    """Yangi taklif — serials jadvaliga holat='kutilmoqda' bilan yoziladi."""
+    return await _run(
+        """
+        INSERT INTO serials (nom, tavsif, manba_url, qoshgan_user_id, holat)
+        VALUES (?, ?, ?, ?, 'kutilmoqda')
+        """,
+        (nom, tavsif, manba_url, user_id),
+    )
+
+
+async def bugungi_takliflar(user_id: int) -> int:
+    row = await _one(
+        "SELECT COUNT(*) AS n FROM serials WHERE qoshgan_user_id = ? AND date(created_at) = date('now')",
+        (user_id,),
+    )
+    return row["n"]
+
+
+async def takliflar(limit: int = 20):
+    return await _all(
+        "SELECT * FROM serials WHERE holat = 'kutilmoqda' ORDER BY created_at DESC LIMIT ?",
+        (limit,),
+    )
+
+
+async def taklif_tasdiqla(serial_id: int) -> None:
+    await _run("UPDATE serials SET holat = 'tasdiqlangan' WHERE id = ?", (serial_id,))
+
+
+async def taklif_rad(serial_id: int) -> None:
+    await _run("DELETE FROM serials WHERE id = ? AND holat = 'kutilmoqda'", (serial_id,))

@@ -10,7 +10,7 @@ from math import ceil
 from aiogram.fsm.context import FSMContext
 from aiogram.types import KeyboardButton, Message, ReplyKeyboardMarkup
 
-from config import EPISODES_PER_PAGE, SERIALS_PER_PAGE
+from config import EPISODES_PER_PAGE, FEATURE_TAKLIF, SERIALS_PER_PAGE
 
 # ----------------------------------------------- tugma matnlari (routing kalitlari)
 HOME = "🏠 Asosiy menyu"
@@ -23,13 +23,31 @@ PREV_EP = "⬅️ Oldingi"
 EPISODES = "📋 Qismlar"
 NEXT_EP = "Keyingi ➡️"
 CANCEL = "✖️ Bekor qilish"
+SKIP = "➖ O'tkazib yuborish"
 ADMIN_BACK = "⬅️ Admin panel"
 DONE = "✅ Tugatdim"
+
+# Modul tugmalari — mos bayroq o'chiq bo'lsa umuman chizilmaydi
+TAKLIF_QIL = "➕ Kino taklif qilish"   # FEATURE_TAKLIF (user)
+TAKLIFLAR = "📥 Takliflar"             # FEATURE_TAKLIF (admin)
+YUKLASH = "⬇️ Yuklash"                 # FEATURE_YUKLASH (admin)
+LINK = "🔗 Link yuborish"
+NAVBAT = "📋 Navbat holati"
+XATOLAR = "⚠️ Xatolar"
+HAVOLA = "🔗 Havola"
+TASDIQLASH = "✅ Tasdiqlash"
+RAD_ETISH = "❌ Rad etish"
 
 SERIAL_PREFIX = "🎬 "        # serial tugmalari: "🎬 <nom>"
 DAVOM_PREFIX = "▶️ Davom ettirish"
 QISM_SUFFIX = "-qism"        # qism tugmalari: "<N>-qism"
 OCHIR_PREFIX = "🗑 "         # admin: qism o'chirish tugmalari
+
+
+async def havola(bot, payload: str) -> str:
+    """Deeplink: https://t.me/<bot>?start=<payload>  (bot.me() keshlanadi)."""
+    me = await bot.me()
+    return f"https://t.me/{me.username}?start={payload}"
 
 
 def esc(matn) -> str:
@@ -74,6 +92,8 @@ def main_menu_kb(serials, page: int, jami: int, davom=None) -> ReplyKeyboardMark
         qatorlar.append([f"{DAVOM_PREFIX}: {davom['nom']} {davom['oxirgi_qism']}{QISM_SUFFIX}"])
     qatorlar += [[SERIAL_PREFIX + s["nom"]] for s in serials]
     qatorlar.append(page_row(page, jami, SERIALS_PER_PAGE))
+    if FEATURE_TAKLIF:
+        qatorlar.append([TAKLIF_QIL])
     qatorlar.append([MUROJAT])
     return kb(*qatorlar)
 

@@ -13,6 +13,8 @@ import db
 import ui
 from config import (
     ARCHIVE_CHANNEL_ID,
+    FEATURE_TAKLIF,
+    FEATURE_YUKLASH,
     BROADCAST_CHUNK,
     BROADCAST_PAUSE,
     EPISODES_PER_PAGE,
@@ -31,7 +33,7 @@ EDIT = "✏️ Tahrirlash / o'chirish"
 STAT = "📊 Statistika"
 BC = "📨 Tarqatish"
 MUR = "💬 Murojatlar"
-SKIP = "➖ O'tkazib yuborish"
+SKIP = ui.SKIP
 DEL_SERIAL = "🗑 Serialni o'chirish"
 DEL_EPISODES = "🗑 Qismlarni o'chirish"
 DEL_YES = "🗑 Ha, o'chirilsin"
@@ -69,7 +71,17 @@ class Broadcast(StatesGroup):
 
 
 def menu_kb():
-    return ui.kb([ADD], [EP_ADD], [EDIT], [STAT, BC], [MUR], [ui.HOME])
+    # modul tugmalari faqat bayroq yoqilganda chiziladi
+    return ui.kb(
+        [ADD],
+        [EP_ADD],
+        [EDIT],
+        [ui.YUKLASH] if FEATURE_YUKLASH else [],
+        [ui.TAKLIFLAR] if FEATURE_TAKLIF else [],
+        [STAT, BC],
+        [MUR],
+        [ui.HOME],
+    )
 
 
 def step_kb(skip: bool = False):
@@ -302,6 +314,7 @@ async def show_edit(message: Message, state: FSMContext, serial_id: int):
         ui.kb(
             ["✏️ Nom", "✏️ Tavsif"],
             ["✏️ Janr", "✏️ Yil", "🖼 Poster"],
+            [ui.HAVOLA],
             [DEL_EPISODES],
             [DEL_SERIAL],
             [ui.ADMIN_BACK, ui.HOME],
@@ -339,6 +352,33 @@ async def edit_save(message: Message, state: FSMContext):
 
     await db.update_serial(serial_id, maydon, qiymat)
     await show_edit(message, state, serial_id)
+
+
+@router.message(F.text == ui.HAVOLA, ui.ekran("a_edit"))
+async def havola(message: Message, state: FSMContext, bot: Bot):
+    malumot = await state.get_data()
+    serial_id = malumot["nav_serial"]
+    serial = await db.get_serial(serial_id)
+    if serial is None:
+        await show_picker(message, state, "edit")
+        return
+    serial_havola = await ui.havola(bot, f"serial_{serial_id}")
+    qism_havola = await ui.havola(bot, f"qism_{serial_id}_1")
+    await ui.screen(
+        message,
+        state,
+        f"🔗 <b>{ui.esc(serial['nom'])}</b> havolalari\n\n"
+        f"Serial: <code>{serial_havola}</code>\n"
+        f"1-qism: <code>{qism_havola}</code>\n\n"
+        f"<i>Qism raqamini almashtirib istalgan qismga havola olasiz.</i>",
+        ui.kb([ui.BACK], [ui.ADMIN_BACK, ui.HOME]),
+    )
+
+
+@router.message(F.text == ui.BACK, ui.ekran("a_edit"))
+async def havoladan_orqaga(message: Message, state: FSMContext):
+    malumot = await state.get_data()
+    await show_edit(message, state, malumot["nav_serial"])
 
 
 @router.message(F.text == DEL_SERIAL, ui.ekran("a_edit"))

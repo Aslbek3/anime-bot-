@@ -1,7 +1,7 @@
 """Asosiy menyu, serial kartochkasi va qism yuborish (reply tugmalar)."""
 from aiogram import Bot, F, Router
 from aiogram.exceptions import TelegramAPIError
-from aiogram.filters import CommandStart
+from aiogram.filters import CommandObject, CommandStart
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
 
@@ -31,7 +31,8 @@ async def show_main(message: Message, state: FSMContext, page: int = 0) -> None:
 
 async def show_serial(message: Message, state: FSMContext, serial_id: int, page: int = 0) -> bool:
     serial = await db.get_serial(serial_id)
-    if serial is None:
+    # tasdiqlanmagan taklif foydalanuvchiga ochilmaydi (deeplink orqali ham)
+    if serial is None or serial["holat"] not in (None, "", "tasdiqlangan"):
         return False
 
     jami = await db.count_episodes(serial_id)
@@ -44,6 +45,11 @@ async def show_serial(message: Message, state: FSMContext, serial_id: int, page:
     if serial["tavsif"]:
         qatorlar += ["", ui.esc(serial["tavsif"])]
     qatorlar += ["", f"📺 Qismlar: {jami}" if jami else "📭 Qismlar hali qo'shilmagan."]
+    if serial["qoshgan_user_id"]:
+        muallif = await db.get_user(serial["qoshgan_user_id"])
+        if muallif:
+            nomi = f"@{muallif['username']}" if muallif["username"] else (muallif["ism"] or "foydalanuvchi")
+            qatorlar.append(f"➕ qo'shdi: {ui.esc(nomi)}")
 
     await state.set_state(None)
     await ui.set_nav(state, "serial", nav_serial=serial_id, nav_page=page)
@@ -91,6 +97,23 @@ async def send_episode(message: Message, state: FSMContext, bot: Bot, serial_id:
 
 
 # ------------------------------------------------------------------ handlerlar
+
+# Deeplink: t.me/<bot>?start=serial_12 yoki ?start=qism_12_3
+# CommandStart(deep_link=True) oddiy /start dan OLDIN turishi shart.
+@router.message(CommandStart(deep_link=True))
+async def start_havola(message: Message, state: FSMContext, command: CommandObject, bot: Bot):
+    bolaklar = (command.args or "").split("_")
+    ochildi = False
+    if bolaklar[0] == "serial" and len(bolaklar) == 2 and bolaklar[1].isdigit():
+        ochildi = await show_serial(message, state, int(bolaklar[1]))
+    elif bolaklar[0] == "qism" and len(bolaklar) == 3 and all(b.isdigit() for b in bolaklar[1:]):
+        serial_id, qism = int(bolaklar[1]), int(bolaklar[2])
+        if await show_serial(message, state, serial_id):
+            await send_episode(message, state, bot, serial_id, qism)
+            ochildi = True
+    if not ochildi:
+        await show_main(message, state)
+
 
 @router.message(CommandStart())
 async def start(message: Message, state: FSMContext):

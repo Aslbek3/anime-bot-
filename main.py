@@ -8,7 +8,7 @@ from aiogram.enums import ParseMode
 from aiogram.fsm.storage.memory import MemoryStorage
 
 import db
-from config import BOT_TOKEN
+from config import BOT_TOKEN, FEATURE_TAKLIF, FEATURE_YUKLASH
 from handlers import admin, kino, murojat, qidiruv
 from middlewares import ActivityMiddleware
 
@@ -17,7 +17,19 @@ from middlewares import ActivityMiddleware
 # Tartib muhim: tugmalar oddiy matn bo'lgani uchun admin birinchi turadi
 # (uning ekranlari o'z tugmalarini oladi), qidiruv esa eng oxirida —
 # u boshqa hech kim olmagan matnni o'ziga oladi.
-ROUTERS = [admin, kino, murojat, qidiruv]
+ROUTERS = [admin]
+
+# Bayroq o'chiq bo'lsa modul import ham qilinmaydi (og'ir bog'liqliklar yuklanmasin)
+if FEATURE_YUKLASH:
+    from handlers import yuklash
+
+    ROUTERS.append(yuklash)
+if FEATURE_TAKLIF:
+    from handlers import taklif
+
+    ROUTERS.append(taklif)
+
+ROUTERS += [kino, murojat, qidiruv]
 
 
 async def main() -> None:
