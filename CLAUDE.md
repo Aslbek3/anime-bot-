@@ -41,10 +41,14 @@ har doim oxirgi: u boshqa hech kim olmagan matnni qidiruv deb qabul qiladi.
   turlicha ishlashi shu orqali hal qilinadi. `state.clear()` ishlatmang
   (u `nav_*` ni ham o'chiradi) — `state.set_state(None)` yetarli.
 - **Navigatsiya** — tupik ekran bo'lmaydi: har bir ekranda orqaga yoki
-  🏠 asosiy menyu tugmasi bor. Reply tugmada xabarni edit qilib bo'lmagani
-  uchun `ui.screen()` oldingi ekranni va foydalanuvchi bosgan tugma xabarini
-  o'chirib, yangisini yuboradi — chatda bitta faol ekran qoladi.
-  Tarqatish uchun yuborilgan xabar o'chirilmaydi (`incoming=False`).
+  🏠 asosiy menyu tugmasi bor. Bot hech qachon xabar o'chirmaydi —
+  na foydalanuvchinikini, na o'zinikini: yozishma oddiy chatdek ketadi.
+- **Klaviatura faqat o'zgarganda yuboriladi** — `ui.screen()` `kb_if_new()`
+  orqali oxirgi yuborilgan klaviatura imzosini (`kb_imzo`) solishtiradi va
+  bir xil bo'lsa `reply_markup` ni umuman qo'shmaydi. Telegram bunday holda
+  mavjud klaviaturani o'z joyida qoldiradi, shuning uchun tugmalar
+  yopilib-ochilmaydi. Xabarni `message.answer(...)` bilan to'g'ridan-to'g'ri
+  yubormang — `ui.screen()` dan o'ting, aks holda klaviatura bekorga qayta chiziladi.
 - **Videolar** `file_id` orqali saqlanmaydi (u bot tokeniga bog'langan).
   `episodes.kanal_msg_id` da arxiv kanaldagi `message_id` turadi, yuborishda
   `bot.copy_message(from_chat_id=ARCHIVE_CHANNEL_ID, ...)` ishlatiladi.

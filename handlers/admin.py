@@ -448,7 +448,6 @@ async def broadcast_start(message: Message, state: FSMContext):
 
 @router.message(Broadcast.xabar)
 async def broadcast_preview(message: Message, state: FSMContext):
-    # xabarning o'zi o'chirilmaydi — nusxa shundan olinadi
     await state.update_data(bc_chat=message.chat.id, bc_msg=message.message_id)
     jami = await db.count_users()
     await ui.set_nav(state, "a_bc")
@@ -457,7 +456,6 @@ async def broadcast_preview(message: Message, state: FSMContext):
         state,
         f"👆 Shu xabar <b>{jami}</b> ta foydalanuvchiga yuboriladi. Tasdiqlaysizmi?",
         ui.kb([BC_SEND], [ui.CANCEL], [ui.HOME]),
-        incoming=False,
     )
     await state.set_state(None)
 
@@ -501,7 +499,6 @@ async def broadcast_send(message: Message, state: FSMContext, bot: Bot):
         f"🚫 Bloklagan: {bloklangan}\n"
         f"⚠️ Xato: {xato}",
         menu_kb(),
-        incoming=False,
     )
 
 

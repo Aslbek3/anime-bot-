@@ -4,11 +4,9 @@ Butun navigatsiya reply tugmalar orqali: inline tugma ishlatilmaydi.
 Tugma bosilganda bot oddiy matn xabari oladi, shuning uchun routing
 shu fayldagi matn konstantalari bo'yicha ketadi.
 """
-from contextlib import suppress
 from html import escape
 from math import ceil
 
-from aiogram.exceptions import TelegramAPIError
 from aiogram.fsm.context import FSMContext
 from aiogram.types import KeyboardButton, Message, ReplyKeyboardMarkup
 
@@ -106,39 +104,37 @@ def simple_kb(*tugmalar: str) -> ReplyKeyboardMarkup:
 
 # ----------------------------------------------------------------- ekran
 
+async def kb_if_new(state: FSMContext, keyboard: ReplyKeyboardMarkup) -> ReplyKeyboardMarkup | None:
+    """Klaviatura o'zgarmagan bo'lsa None qaytaradi.
+
+    reply_markup yuborilmasa Telegram mavjud klaviaturani o'z holicha qoldiradi —
+    shuning uchun tugmalar har xabarda yopilib-ochilmaydi, "sakramaydi".
+    """
+    imzo = "|".join(",".join(b.text for b in qator) for qator in keyboard.keyboard)
+    malumot = await state.get_data()
+    if malumot.get("kb_imzo") == imzo:
+        return None
+    await state.update_data(kb_imzo=imzo)
+    return keyboard
+
+
 async def screen(
     message: Message,
     state: FSMContext,
     matn: str,
     keyboard: ReplyKeyboardMarkup,
     rasm: str | None = None,
-    incoming: bool = True,
 ) -> Message:
-    """Yangi ekran chizadi.
+    """Yangi ekran yuboradi.
 
-    Reply tugmalarda callback yo'q — xabarni edit qilib bo'lmaydi, shuning uchun
-    bot oldingi ekranini va foydalanuvchi bosgan tugma xabarini o'chirib tashlaydi.
-    Natijada chatda bitta faol ekran qoladi.
+    Hech narsa o'chirilmaydi: foydalanuvchi yozgan xabar ham, botning eski
+    ekrani ham chatda qoladi — oddiy yozishmadek. Klaviatura esa faqat
+    o'zgarganda qayta yuboriladi.
     """
-    await wipe(message, state, incoming)
+    km = await kb_if_new(state, keyboard)
     if rasm:
-        yangi = await message.answer_photo(rasm, caption=matn, reply_markup=keyboard)
-    else:
-        yangi = await message.answer(matn, reply_markup=keyboard)
-    await state.update_data(nav_msg=yangi.message_id)
-    return yangi
-
-
-async def wipe(message: Message, state: FSMContext, incoming: bool = True) -> None:
-    """Oldingi ekranni va (kerak bo'lsa) kelgan xabarni o'chiradi."""
-    malumot = await state.get_data()
-    eski = malumot.get("nav_msg")
-    if eski:
-        with suppress(TelegramAPIError):
-            await message.bot.delete_message(message.chat.id, eski)
-    if incoming:
-        with suppress(TelegramAPIError):
-            await message.delete()
+        return await message.answer_photo(rasm, caption=matn, reply_markup=km)
+    return await message.answer(matn, reply_markup=km)
 
 
 async def set_nav(state: FSMContext, ekran: str, **qiymatlar) -> None:

@@ -1,6 +1,4 @@
 """Asosiy menyu, serial kartochkasi va qism yuborish (reply tugmalar)."""
-from contextlib import suppress
-
 from aiogram import Bot, F, Router
 from aiogram.exceptions import TelegramAPIError
 from aiogram.filters import CommandStart
@@ -72,15 +70,15 @@ async def send_episode(message: Message, state: FSMContext, bot: Bot, serial_id:
     if episode["nom"]:
         sarlavha += f" — {ui.esc(episode['nom'])}"
 
-    await ui.wipe(message, state)
+    km = await ui.kb_if_new(state, ui.episode_kb(oldingi, keyingi))
     try:
         # video arxiv kanaldan ko'chiriladi (file_id bot tokeniga bog'liq bo'lgani uchun)
-        yangi = await bot.copy_message(
+        await bot.copy_message(
             chat_id=message.chat.id,
             from_chat_id=ARCHIVE_CHANNEL_ID,
             message_id=episode["kanal_msg_id"],
             caption=sarlavha,
-            reply_markup=ui.episode_kb(oldingi, keyingi),
+            reply_markup=km,
         )
     except TelegramAPIError:
         await message.answer("⚠️ Videoni yuborib bo'lmadi. Admin bilan bog'laning.")
@@ -88,7 +86,7 @@ async def send_episode(message: Message, state: FSMContext, bot: Bot, serial_id:
         return
 
     await state.set_state(None)
-    await ui.set_nav(state, "episode", nav_serial=serial_id, nav_qism=qism, nav_msg=yangi.message_id)
+    await ui.set_nav(state, "episode", nav_serial=serial_id, nav_qism=qism)
     await db.save_progress(message.from_user.id, serial_id, qism)
 
 
@@ -159,8 +157,6 @@ async def episode_nav(message: Message, state: FSMContext, bot: Bot):
     oldingi, keyingi = await db.prev_next_episode(serial_id, qism)
     keyingisi = oldingi if message.text == ui.PREV_EP else keyingi
     if keyingisi is None:
-        with suppress(TelegramAPIError):
-            await message.delete()
         return
     await send_episode(message, state, bot, serial_id, keyingisi)
 

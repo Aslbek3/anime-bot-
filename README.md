@@ -43,9 +43,9 @@ pm2 save
 
 Oddiy matn xabari qidiruv deb qabul qilinadi.
 
-Butun interfeys **reply (oddiy) tugmalarda** — inline tugma yo'q. Bot har
-bosishda oldingi ekranini va bosilgan tugma xabarini o'chiradi, shuning uchun
-chatda bitta faol ekran qoladi.
+Butun interfeys **reply (oddiy) tugmalarda** — inline tugma yo'q. Bot hech
+qanday xabarni o'chirmaydi, klaviaturani esa faqat u o'zgarganda qayta
+yuboradi — shuning uchun tugmalar har xabarda "sakramaydi".
 
 ## Admin panel
 
