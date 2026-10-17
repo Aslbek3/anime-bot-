@@ -21,9 +21,34 @@ def bayroq(nom: str, standart: str = "false") -> bool:
     return os.getenv(nom, standart).strip().lower() in {"true", "1", "yes", "ha"}
 
 
-# Modul bayroqlari: false bo'lsa router ham, tugmalar ham umuman ko'rinmaydi
-FEATURE_YUKLASH = bayroq("FEATURE_YUKLASH")
-FEATURE_TAKLIF = bayroq("FEATURE_TAKLIF")
+# Modul bayroqlari: false bo'lsa router ham, tugmalar ham umuman ko'rinmaydi.
+# Har biri alohida fayl — handlers/<nom>.py
+FEATURE_YUKLASH = bayroq("FEATURE_YUKLASH")            # handlers/yuklash.py
+FEATURE_TAKLIF = bayroq("FEATURE_TAKLIF")              # handlers/taklif.py
+FEATURE_BILDIRISHNOMA = bayroq("FEATURE_BILDIRISHNOMA")  # handlers/bildirishnoma.py
+FEATURE_RAQAM = bayroq("FEATURE_RAQAM")                # handlers/qism_raqam.py
+FEATURE_ROYXATIM = bayroq("FEATURE_ROYXATIM")          # handlers/royxatim.py
+FEATURE_ULASHISH = bayroq("FEATURE_ULASHISH")          # handlers/ulashish.py
+FEATURE_JANR = bayroq("FEATURE_JANR")                  # handlers/janrlar.py
+FEATURE_OBUNA = bayroq("FEATURE_OBUNA")                # handlers/obuna.py
+FEATURE_AVTOPOST = bayroq("FEATURE_AVTOPOST")          # handlers/avtopost.py
+FEATURE_ZAXIRA = bayroq("FEATURE_ZAXIRA")              # handlers/zaxira.py
+FEATURE_ANTIFLOOD = bayroq("FEATURE_ANTIFLOOD")        # middlewares.py
+
+# Majburiy obuna: vergul bilan ajratilgan kanallar (@nom yoki -100...)
+OBUNA_KANALLAR = [k.strip() for k in os.getenv("OBUNA_KANALLAR", "").split(",") if k.strip()]
+OBUNA_KESH = 300          # a'zolik tekshiruvi shuncha soniya keshlanadi
+
+# Avtopost: yangi serial/qism e'lon qilinadigan ochiq kanal
+POST_CHANNEL_ID = int(os.getenv("POST_CHANNEL_ID", "0") or 0)
+
+# Zaxira: har necha soatda va nechtasini saqlash
+ZAXIRA_SOAT = int(os.getenv("ZAXIRA_SOAT", "24"))
+ZAXIRA_SAQLASH = int(os.getenv("ZAXIRA_SAQLASH", "7"))
+ZAXIRA_DIR = os.getenv("ZAXIRA_DIR", str(Path(__file__).parent / "backup"))
+
+# Antiflood: bitta userdan shuncha soniyada bitta update
+ANTIFLOOD_INTERVAL = float(os.getenv("ANTIFLOOD_INTERVAL", "0.4"))
 
 # Sahifalash
 SERIALS_PER_PAGE = 8

@@ -1,4 +1,5 @@
 """Middleware'lar: foydalanuvchini ro'yxatga olish va admin filtri."""
+import time
 from typing import Any, Awaitable, Callable
 
 from aiogram import BaseMiddleware
@@ -6,7 +7,7 @@ from aiogram.dispatcher.event.bases import UNHANDLED
 from aiogram.types import TelegramObject, User
 
 import db
-from config import ADMIN_ID
+from config import ADMIN_ID, ANTIFLOOD_INTERVAL
 
 
 class ActivityMiddleware(BaseMiddleware):
@@ -36,3 +37,24 @@ class AdminOnly(BaseMiddleware):
         if user and user.id == ADMIN_ID:
             return await handler(event, data)
         return UNHANDLED
+
+
+class AntifloodMiddleware(BaseMiddleware):
+    """Tez-tez bosishdan himoya (FEATURE_ANTIFLOOD).
+
+    Bitta foydalanuvchidan ANTIFLOOD_INTERVAL ichida kelgan ortiqcha
+    update'lar jimgina tashlab yuboriladi.
+    """
+
+    def __init__(self) -> None:
+        self._oxirgi: dict[int, float] = {}
+
+    async def __call__(self, handler, event: TelegramObject, data: dict[str, Any]):
+        user: User | None = data.get("event_from_user")
+        if user is None:
+            return await handler(event, data)
+        hozir = time.monotonic()
+        if hozir - self._oxirgi.get(user.id, 0.0) < ANTIFLOOD_INTERVAL:
+            return None
+        self._oxirgi[user.id] = hozir
+        return await handler(event, data)

@@ -16,12 +16,36 @@ handlers/
   qidiruv.py     erkin matn -> LIKE qidiruv
   murojat.py     user -> admin xabar, admin reply -> user javob
   admin.py       admin panel (FSM: serial, qism, tahrir, tarqatish)
-  yuklash.py     FEATURE_YUKLASH: link -> navbat -> arxiv kanal (o'chiq)
-  taklif.py      FEATURE_TAKLIF: user taklifi -> admin tasdig'i (o'chiq)
+  yuklash.py     FEATURE_YUKLASH: link -> navbat -> arxiv kanal
+  taklif.py      FEATURE_TAKLIF: user taklifi -> admin tasdig'i
+  bildirishnoma.py FEATURE_BILDIRISHNOMA: yangi qism -> tomoshabinlarga (routersiz)
+  qism_raqam.py  FEATURE_RAQAM: "45" deb yozsa 45-qism
+  royxatim.py    FEATURE_ROYXATIM: "Mening ro'yxatim"
+  ulashish.py    FEATURE_ULASHISH: serial/qism havolasi
+  janrlar.py     FEATURE_JANR: janr bo'yicha ro'yxat
+  obuna.py       FEATURE_OBUNA: majburiy obuna (middleware + router)
+  avtopost.py    FEATURE_AVTOPOST: kanalga e'lon (routersiz)
+  zaxira.py      FEATURE_ZAXIRA: bazani zaxiralash (faqat startup ilgagi)
 parsers/
   base.py        parser shartnomasi (qidir / yuklab_ol)
   namuna.py      namuna parser — ishlamaydi, NotImplementedError
+tests/
+  run.py         hamma sinovni uchta bayroq holatida ishga tushiradi
+  test_ochiq.py  bayroqlar o'chiq — asosiy oqimlar
+  test_yoqiq.py  yuklash + taklif
+  test_hammasi.py  barcha modullar yoqiq
 ```
+
+## Sinovlar
+
+```bash
+python tests/run.py
+```
+
+Uchta holat alohida jarayonda ishlaydi (bayroqlar import vaqtida o'qiladi),
+baza vaqtinchalik papkada — `qogoz.db` ga tegilmaydi. Soxta Telegram sessiyasi
+(`FakeSession`) API chaqiruvlarini ushlab qoladi, hech narsa tarmoqqa chiqmaydi.
+**Har o'zgarishdan keyin shuni ishga tushiring.**
 
 ## Yangi modul qo'shish
 
@@ -34,8 +58,23 @@ har doim oxirgi: u boshqa hech kim olmagan matnni qidiruv deb qabul qiladi.
 
 ## Modul bayroqlari
 
-`config.py` dagi `FEATURE_YUKLASH` va `FEATURE_TAKLIF` (.env dan o'qiladi,
-standart `false`). Bayroq o'chiq bo'lsa:
+Hammasi `config.py` da, `.env` dan o'qiladi, standarti `false`:
+
+| Bayroq | Fayl | Nima qiladi |
+|---|---|---|
+| `FEATURE_YUKLASH` | `handlers/yuklash.py` | saytdan yuklab arxiv kanalga saqlash |
+| `FEATURE_TAKLIF` | `handlers/taklif.py` | user taklifi + admin tasdig'i |
+| `FEATURE_BILDIRISHNOMA` | `handlers/bildirishnoma.py` | yangi qism chiqqanda tomoshabinlarga xabar |
+| `FEATURE_RAQAM` | `handlers/qism_raqam.py` | qism raqamini yozib o'tish |
+| `FEATURE_ROYXATIM` | `handlers/royxatim.py` | "Mening ro'yxatim" |
+| `FEATURE_ULASHISH` | `handlers/ulashish.py` | serial/qism havolasini ulashish |
+| `FEATURE_JANR` | `handlers/janrlar.py` | janr bo'yicha ro'yxat |
+| `FEATURE_OBUNA` | `handlers/obuna.py` | majburiy obuna (`OBUNA_KANALLAR` kerak) |
+| `FEATURE_AVTOPOST` | `handlers/avtopost.py` | kanalga e'lon (`POST_CHANNEL_ID` kerak) |
+| `FEATURE_ZAXIRA` | `handlers/zaxira.py` | bazani davriy zaxiralash |
+| `FEATURE_ANTIFLOOD` | `middlewares.py` | tez bosishdan himoya |
+
+Bayroq o'chiq bo'lsa:
 
 - `main.py` modulni **import ham qilmaydi** va routerni ulamaydi;
 - `ui.main_menu_kb()` va `admin.menu_kb()` mos tugmani chizmaydi.
@@ -51,6 +90,19 @@ Shu sababli o'chiq modul mavjud ishlashga umuman tegmaydi — yangi bog'liqlik
 3. Tekshiring: `/start` da "➕ Kino taklif qilish", admin panelda "📥 Takliflar".
    Yangi jadval kerak emas — `serials` dagi `holat`, `qoshgan_user_id`,
    `manba_url` ustunlari ishlatiladi.
+
+**Oddiy modullar** (`FEATURE_RAQAM`, `FEATURE_ROYXATIM`, `FEATURE_ULASHISH`,
+`FEATURE_JANR`, `FEATURE_BILDIRISHNOMA`, `FEATURE_ANTIFLOOD`): `.env` da `true`
+qilib, botni qayta ishga tushiring — boshqa sozlama kerak emas.
+
+**FEATURE_OBUNA:** `OBUNA_KANALLAR=@kanal1,@kanal2` (bot o'sha kanallarda
+admin bo'lishi shart). Tekshirib bo'lmasa (bot admin emas) foydalanuvchi
+bloklanmaydi — ataylab shunday, hammani qamab qo'ymaslik uchun.
+
+**FEATURE_AVTOPOST:** `POST_CHANNEL_ID=-100...`, bot o'sha kanalda admin.
+
+**FEATURE_ZAXIRA:** `ZAXIRA_SOAT` (standart 24) va `ZAXIRA_SAQLASH` (7).
+Nusxalar `backup/` ga tushadi, eskilari avtomatik o'chadi.
 
 **FEATURE_YUKLASH:**
 1. `pip install -r requirements.txt` (yt-dlp kerak bo'ladi).
@@ -90,6 +142,21 @@ to'xtamaydi.
 Noto'g'ri yoki ko'rinmaydigan (tasdiqlanmagan) payload bo'lsa asosiy menyu
 ochiladi. Havolani admin panelidan olish mumkin: serialni tahrirlash
 ekranida "🔗 Havola". Havola `ui.havola(bot, payload)` bilan yasaladi.
+
+## Doimiy yoqiq yaxshilanishlar (bayroqsiz)
+
+Bular tuzatish/mayda yaxshilanish bo'lgani uchun bayroqqa bog'lanmagan:
+
+- **Eskirgan ekran** — bot qayta ishga tushsa `nav_*` konteksti yo'qoladi.
+  Avval eski tugma qidiruvga tushib "topilmadi" deyilardi; endi `kino.py`
+  oxiridagi `eskirgan_ekran` handleri (`ui.ekran_yoq()` filtri bilan) uni
+  ushlab, asosiy menyuni qaytaradi.
+- **`upload_video` holati** — video yuborishdan oldin ko'rsatiladi.
+- **Qidiruv natijalari sahifalanadi** (`nav_soz` + `nav_page`).
+- **Migratsiya** — `db.migratsiya()` yetishmayotgan ustunlarni avtomatik
+  qo'shadi (`YANGI_USTUNLAR` lug'ati), `init_db()` da chaqiriladi.
+- **`users.faol`** — tarqatish/bildirishnomada bloklaganlar belgilanadi,
+  keyingi yuborishlarda ular o'tkazib yuboriladi, statistikada ko'rinadi.
 
 ## Konvensiyalar
 
@@ -202,3 +269,11 @@ panel ko'rinmasligi, hech qanday xabar o'chirilmasligi.
 - O'zgartirishdan oldin `backup/` ga baza va asosiy fayllar nusxasi olindi.
 - Sinov: ikkala bayroq holatida ham uchidan-uchiga test o'tkazildi — o'chiq
   holatda eski oqimlar avvalgidek, yangi tugmalar ko'rinmaydi.
+
+**2026-10-17 — qulaylik va funksionallik to'plami**
+- 9 ta yangi modul, har biri alohida fayl va alohida bayroq (hammasi `false`):
+  bildirishnoma, qism_raqam, royxatim, ulashish, janrlar, obuna, avtopost,
+  zaxira, antiflood.
+- Bayroqsiz tuzatishlar: eskirgan ekran, `upload_video`, qidiruv sahifalash,
+  avtomatik migratsiya, `users.faol` bayrog'i.
+- `tests/` repoga ko'chirildi: `python tests/run.py` — uchta bayroq holati.

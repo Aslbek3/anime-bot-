@@ -33,7 +33,8 @@ CREATE TABLE IF NOT EXISTS users (
     ism            TEXT,
     til            TEXT DEFAULT 'uz',
     created_at     TEXT DEFAULT CURRENT_TIMESTAMP,
-    oxirgi_faollik TEXT DEFAULT CURRENT_TIMESTAMP
+    oxirgi_faollik TEXT DEFAULT CURRENT_TIMESTAMP,
+    faol           INTEGER DEFAULT 1        -- 0 = botni bloklagan
 );
 
 CREATE TABLE IF NOT EXISTS progress (
@@ -71,6 +72,11 @@ CREATE INDEX IF NOT EXISTS idx_episodes_serial ON episodes(serial_id, qism_raqam
 CREATE INDEX IF NOT EXISTS idx_progress_user ON progress(user_id, yangilangan);
 """
 
+# Mavjud bazaga keyin qo'shilgan ustunlar: init_db avtomatik ALTER qiladi
+YANGI_USTUNLAR = {
+    "users": {"faol": "INTEGER DEFAULT 1"},
+}
+
 _db: aiosqlite.Connection | None = None
 
 
@@ -81,6 +87,16 @@ async def init_db() -> None:
     await _db.execute("PRAGMA foreign_keys = ON")
     await _db.executescript(SCHEMA)
     await _db.commit()
+    await migratsiya()
+
+
+async def migratsiya() -> None:
+    """Yetishmayotgan ustunlarni qo'shadi — qo'lda ALTER TABLE qilish shart emas."""
+    for jadval, ustunlar in YANGI_USTUNLAR.items():
+        mavjud = {r["name"] for r in await _all(f"PRAGMA table_info({jadval})")}
+        for nom, tur in ustunlar.items():
+            if nom not in mavjud:
+                await _run(f"ALTER TABLE {jadval} ADD COLUMN {nom} {tur}")
 
 
 async def close_db() -> None:
@@ -132,8 +148,18 @@ async def count_active_today() -> int:
     return row["n"]
 
 
-async def all_user_ids() -> list[int]:
-    return [r["user_id"] for r in await _all("SELECT user_id FROM users")]
+async def all_user_ids(faqat_faol: bool = True) -> list[int]:
+    shart = "WHERE faol = 1" if faqat_faol else ""
+    return [r["user_id"] for r in await _all(f"SELECT user_id FROM users {shart}")]
+
+
+async def faol_belgila(user_id: int, faol: bool) -> None:
+    """Bloklagan/qaytgan foydalanuvchini belgilaydi."""
+    await _run("UPDATE users SET faol = ? WHERE user_id = ?", (1 if faol else 0, user_id))
+
+
+async def count_faol() -> int:
+    return (await _one("SELECT COUNT(*) AS n FROM users WHERE faol = 1"))["n"]
 
 
 # -------------------------------------------------------------- serials
@@ -418,3 +444,89 @@ async def taklif_tasdiqla(serial_id: int) -> None:
 
 async def taklif_rad(serial_id: int) -> None:
     await _run("DELETE FROM serials WHERE id = ? AND holat = 'kutilmoqda'", (serial_id,))
+
+
+# ------------------------------------------------- qidiruv sahifalash
+
+async def search_count(soz: str) -> int:
+    naqsh = f"%{soz}%"
+    row = await _one(
+        f"SELECT COUNT(*) AS n FROM serials WHERE (nom LIKE ? OR janr LIKE ?) AND {KORINADI}",
+        (naqsh, naqsh),
+    )
+    return row["n"]
+
+
+async def search_page(soz: str, offset: int, limit: int):
+    naqsh = f"%{soz}%"
+    return await _all(
+        f"""
+        SELECT * FROM serials WHERE (nom LIKE ? OR janr LIKE ?) AND {KORINADI}
+        ORDER BY nom LIMIT ? OFFSET ?
+        """,
+        (naqsh, naqsh, limit, offset),
+    )
+
+
+# ------------------------------------------------------------- janrlar
+
+async def janrlar() -> list[str]:
+    satrlar = await _all(
+        f"""
+        SELECT DISTINCT janr FROM serials
+        WHERE janr IS NOT NULL AND janr != '' AND {KORINADI}
+        ORDER BY janr
+        """
+    )
+    return [r["janr"] for r in satrlar]
+
+
+async def janr_sanoq(janr: str) -> int:
+    row = await _one(
+        f"SELECT COUNT(*) AS n FROM serials WHERE janr = ? AND {KORINADI}", (janr,)
+    )
+    return row["n"]
+
+
+async def janr_seriallari(janr: str, offset: int, limit: int):
+    return await _all(
+        f"""
+        SELECT * FROM serials WHERE janr = ? AND {KORINADI}
+        ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?
+        """,
+        (janr, limit, offset),
+    )
+
+
+# ------------------------------------------- tomoshabinlar / ro'yxatim
+
+async def serial_tomoshabinlari(serial_id: int) -> list[int]:
+    """Shu serialni ko'rgan (progress yozuvi bor) faol foydalanuvchilar."""
+    satrlar = await _all(
+        """
+        SELECT p.user_id FROM progress p
+        JOIN users u ON u.user_id = p.user_id
+        WHERE p.serial_id = ? AND u.faol = 1
+        """,
+        (serial_id,),
+    )
+    return [r["user_id"] for r in satrlar]
+
+
+async def progress_royxati(user_id: int, limit: int = 20):
+    """Foydalanuvchi ko'rayotgan barcha seriallar (oxirgi ko'rilgani birinchi)."""
+    return await _all(
+        f"""
+        SELECT p.serial_id, p.oxirgi_qism, p.yangilangan, s.nom
+        FROM progress p JOIN serials s ON s.id = p.serial_id
+        WHERE p.user_id = ? AND {KORINADI.replace("holat", "s.holat")}
+        ORDER BY p.yangilangan DESC LIMIT ?
+        """,
+        (user_id, limit),
+    )
+
+
+async def zaxira_ol(nishon_yoli: str) -> None:
+    """Ishlayotgan bazadan izchil nusxa (SQLite backup API)."""
+    async with aiosqlite.connect(nishon_yoli) as nishon:
+        await _db.backup(nishon)

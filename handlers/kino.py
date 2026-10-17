@@ -1,5 +1,6 @@
 """Asosiy menyu, serial kartochkasi va qism yuborish (reply tugmalar)."""
 from aiogram import Bot, F, Router
+from aiogram.enums import ChatAction
 from aiogram.exceptions import TelegramAPIError
 from aiogram.filters import CommandObject, CommandStart
 from aiogram.fsm.context import FSMContext
@@ -77,6 +78,7 @@ async def send_episode(message: Message, state: FSMContext, bot: Bot, serial_id:
         sarlavha += f" — {ui.esc(episode['nom'])}"
 
     km = await ui.kb_if_new(state, ui.episode_kb(oldingi, keyingi))
+    await bot.send_chat_action(message.chat.id, ChatAction.UPLOAD_VIDEO)
     try:
         # video arxiv kanaldan ko'chiriladi (file_id bot tokeniga bog'liq bo'lgani uchun)
         await bot.copy_message(
@@ -190,3 +192,16 @@ async def episode_list(message: Message, state: FSMContext):
     serial_id, qism = malumot["nav_serial"], malumot["nav_qism"]
     page = await db.episode_page(serial_id, qism, EPISODES_PER_PAGE)
     await show_serial(message, state, serial_id, page)
+
+
+# Bot qayta ishga tushsa nav konteksti (MemoryStorage) yo'qoladi. Shunda
+# chatdagi eski tugmalar qidiruvga tushib "topilmadi" degan g'alati javob
+# berardi — shu yerda ushlab, asosiy menyuni qaytaramiz.
+@router.message(F.text.regexp(r"^\d+-qism$"), ui.ekran_yoq())
+@router.message(
+    F.text.in_({ui.PREV, ui.NEXT, ui.EPISODES, ui.PREV_EP, ui.NEXT_EP, ui.TO_LIST}),
+    ui.ekran_yoq(),
+)
+async def eskirgan_ekran(message: Message, state: FSMContext):
+    await message.answer("ℹ️ Bu ekran eskirgan. Asosiy menyuni qaytadan ochdim.")
+    await show_main(message, state)

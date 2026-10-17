@@ -10,7 +10,14 @@ from math import ceil
 from aiogram.fsm.context import FSMContext
 from aiogram.types import KeyboardButton, Message, ReplyKeyboardMarkup
 
-from config import EPISODES_PER_PAGE, FEATURE_TAKLIF, SERIALS_PER_PAGE
+from config import (
+    EPISODES_PER_PAGE,
+    FEATURE_JANR,
+    FEATURE_ROYXATIM,
+    FEATURE_TAKLIF,
+    FEATURE_ULASHISH,
+    SERIALS_PER_PAGE,
+)
 
 # ----------------------------------------------- tugma matnlari (routing kalitlari)
 HOME = "🏠 Asosiy menyu"
@@ -29,6 +36,12 @@ DONE = "✅ Tugatdim"
 
 # Modul tugmalari — mos bayroq o'chiq bo'lsa umuman chizilmaydi
 TAKLIF_QIL = "➕ Kino taklif qilish"   # FEATURE_TAKLIF (user)
+ROYXATIM = "📺 Mening ro'yxatim"       # FEATURE_ROYXATIM
+JANRLAR = "🏷 Janrlar"                 # FEATURE_JANR
+ULASHISH = "🔗 Ulashish"               # FEATURE_ULASHISH
+TEKSHIRISH = "✅ Tekshirish"           # FEATURE_OBUNA
+JANR_PREFIX = "🏷 "                    # janr tugmalari: "🏷 <janr>"
+ROYXAT_PREFIX = "▶️ "                  # ro'yxatim tugmalari: "▶️ <nom> · <N>-qism"
 TAKLIFLAR = "📥 Takliflar"             # FEATURE_TAKLIF (admin)
 YUKLASH = "⬇️ Yuklash"                 # FEATURE_YUKLASH (admin)
 LINK = "🔗 Link yuborish"
@@ -92,6 +105,13 @@ def main_menu_kb(serials, page: int, jami: int, davom=None) -> ReplyKeyboardMark
         qatorlar.append([f"{DAVOM_PREFIX}: {davom['nom']} {davom['oxirgi_qism']}{QISM_SUFFIX}"])
     qatorlar += [[SERIAL_PREFIX + s["nom"]] for s in serials]
     qatorlar.append(page_row(page, jami, SERIALS_PER_PAGE))
+    modul_qatori = []
+    if FEATURE_ROYXATIM:
+        modul_qatori.append(ROYXATIM)
+    if FEATURE_JANR:
+        modul_qatori.append(JANRLAR)
+    if modul_qatori:
+        qatorlar.append(modul_qatori)
     if FEATURE_TAKLIF:
         qatorlar.append([TAKLIF_QIL])
     qatorlar.append([MUROJAT])
@@ -103,6 +123,7 @@ def serial_kb(episodes, page: int, jami: int) -> ReplyKeyboardMarkup:
     return kb(
         *rows(nomlar, 4),
         page_row(page, jami, EPISODES_PER_PAGE),
+        [ULASHISH] if FEATURE_ULASHISH else [],
         [TO_LIST, HOME],
     )
 
@@ -114,7 +135,7 @@ def episode_kb(oldingi: int | None, keyingi: int | None) -> ReplyKeyboardMarkup:
     qator.append(EPISODES)
     if keyingi is not None:
         qator.append(NEXT_EP)
-    return kb(qator, [HOME])
+    return kb(qator, [ULASHISH, HOME] if FEATURE_ULASHISH else [HOME])
 
 
 def simple_kb(*tugmalar: str) -> ReplyKeyboardMarkup:
@@ -160,6 +181,16 @@ async def screen(
 async def set_nav(state: FSMContext, ekran: str, **qiymatlar) -> None:
     """Joriy ekranni eslab qoladi — ⬅️/➡️ va qism tugmalari shunga qarab ishlaydi."""
     await state.update_data(nav_ekran=ekran, **qiymatlar)
+
+
+def ekran_yoq():
+    """Filtr: nav konteksti umuman yo'q (masalan bot qayta ishga tushgan)."""
+
+    async def tekshir(message: Message, state: FSMContext) -> bool:
+        malumot = await state.get_data()
+        return malumot.get("nav_ekran") is None
+
+    return tekshir
 
 
 def ekran(*nomlar: str):

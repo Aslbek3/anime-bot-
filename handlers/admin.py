@@ -13,6 +13,8 @@ import db
 import ui
 from config import (
     ARCHIVE_CHANNEL_ID,
+    FEATURE_AVTOPOST,
+    FEATURE_BILDIRISHNOMA,
     FEATURE_TAKLIF,
     FEATURE_YUKLASH,
     BROADCAST_CHUNK,
@@ -25,6 +27,23 @@ from middlewares import AdminOnly
 
 router = Router(name="admin")
 router.message.outer_middleware(AdminOnly())
+
+# Bayroqli modullar: o'chiq bo'lsa import ham qilinmaydi
+bildirishnoma = None
+avtopost = None
+if FEATURE_BILDIRISHNOMA:
+    from handlers import bildirishnoma
+if FEATURE_AVTOPOST:
+    from handlers import avtopost
+
+_fon: set[asyncio.Task] = set()
+
+
+def fonda(korutina) -> None:
+    """Uzoq cho'ziladigan ishni fonga beradi — admin ekrani kutib qolmasin."""
+    vazifa = asyncio.create_task(korutina)
+    _fon.add(vazifa)
+    vazifa.add_done_callback(_fon.discard)
 
 # --- tugma matnlari ---
 ADD = "➕ Serial qo'shish"
@@ -186,7 +205,7 @@ async def add_janr(message: Message, state: FSMContext):
 
 
 @router.message(SerialAdd.yil, F.text)
-async def add_yil(message: Message, state: FSMContext):
+async def add_yil(message: Message, state: FSMContext, bot: Bot):
     yil = bosh(message.text)
     if yil is not None and not yil.isdigit():
         await ui.screen(message, state, "Yilni raqam bilan yozing, masalan 2024:", step_kb(skip=True))
@@ -201,6 +220,8 @@ async def add_yil(message: Message, state: FSMContext):
         int(yil) if yil else None,
     )
     await state.set_state(None)
+    if avtopost:
+        fonda(avtopost.yangi_serial(bot, await db.get_serial(serial_id)))
     await ui.set_nav(state, "a_menu", nav_serial=serial_id)
     await ui.screen(
         message,
@@ -263,7 +284,7 @@ def forward_manba(message: Message) -> tuple[int, int] | None:
 
 
 @router.message(EpisodeAdd.forward)
-async def eps_add(message: Message, state: FSMContext):
+async def eps_add(message: Message, state: FSMContext, bot: Bot):
     manba = forward_manba(message)
     if manba is None:
         await message.answer("Videoni <b>arxiv kanaldan forward</b> qiling (oddiy yuklash emas).")
@@ -284,6 +305,12 @@ async def eps_add(message: Message, state: FSMContext):
     nom = (message.caption or "").strip() or None
     await db.add_episode(serial_id, qism, nom, msg_id, davomiyligi)
     await message.answer(f"✅ <b>{qism}-qism</b> saqlandi. Keyingisini yuboravering.")
+
+    serial = await db.get_serial(serial_id)
+    if bildirishnoma:
+        fonda(bildirishnoma.yangi_qism(bot, serial, qism))
+    if avtopost:
+        fonda(avtopost.yangi_qism(bot, serial, qism))
 
 
 # ------------------------------------------------ tahrirlash / o'chirish
@@ -458,6 +485,7 @@ async def statistika(message: Message, state: FSMContext):
         "",
         f"👥 Foydalanuvchilar: <b>{await db.count_users()}</b>",
         f"🔥 Bugun faol: <b>{await db.count_active_today()}</b>",
+        f"🚫 Bloklagan: <b>{await db.count_users() - await db.count_faol()}</b>",
         f"🎬 Seriallar: <b>{await db.count_serials()}</b>",
         "",
         "<b>Top 10 ko'rilgan:</b>",
@@ -518,6 +546,7 @@ async def broadcast_send(message: Message, state: FSMContext, bot: Bot):
                 yuborildi += 1
             except TelegramForbiddenError:
                 bloklangan += 1
+                await db.faol_belgila(user_id, False)
             except TelegramRetryAfter as e:
                 await asyncio.sleep(e.retry_after)
                 try:

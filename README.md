@@ -56,4 +56,34 @@ yuboradi — shuning uchun tugmalar har xabarda "sakramaydi".
 - 📨 **Tarqatish** — chunked yuborish, bloklaganlar hisoblanadi
 - 💬 **Murojatlar** — javob berilmaganlar; xabarga reply qilsangiz javob userga ketadi
 
+## Qo'shimcha modullar
+
+Hammasi `.env` dagi bayroq bilan **o'chiq** turadi, kerakligini `true` qiling
+va botni qayta ishga tushiring:
+
+| Bayroq | Nima beradi |
+|---|---|
+| `FEATURE_YUKLASH` | saytdan yuklab arxiv kanalga saqlash (parser kerak) |
+| `FEATURE_TAKLIF` | foydalanuvchi kino taklif qiladi, admin tasdiqlaydi |
+| `FEATURE_BILDIRISHNOMA` | yangi qism chiqqanda tomoshabinlarga xabar |
+| `FEATURE_RAQAM` | serial ekranida "45" deb yozsa — 45-qism |
+| `FEATURE_ROYXATIM` | "📺 Mening ro'yxatim" |
+| `FEATURE_ULASHISH` | "🔗 Ulashish" — deeplink havola |
+| `FEATURE_JANR` | "🏷 Janrlar" |
+| `FEATURE_OBUNA` | majburiy obuna (`OBUNA_KANALLAR`) |
+| `FEATURE_AVTOPOST` | yangi serial/qismni kanalga e'lon (`POST_CHANNEL_ID`) |
+| `FEATURE_ZAXIRA` | bazani davriy zaxiralash |
+| `FEATURE_ANTIFLOOD` | tez bosishdan himoya |
+
+## Havolalar (deeplink)
+
+- `t.me/<bot>?start=serial_<id>` — serial kartochkasi
+- `t.me/<bot>?start=qism_<id>_<n>` — to'g'ridan-to'g'ri qism
+
+## Sinovlar
+
+```bash
+python tests/run.py
+```
+
 Loyiha tuzilishi va yangi modul qo'shish qoidasi: [CLAUDE.md](CLAUDE.md).
