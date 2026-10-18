@@ -9,7 +9,13 @@ from aiogram.types import Message
 
 import db
 import ui
-from config import SERIALS_PER_PAGE
+from config import FEATURE_FUZZY, FEATURE_QIDIRUV_JURNALI, SERIALS_PER_PAGE
+
+fuzzy = jurnal = None
+if FEATURE_FUZZY:
+    import fuzzy
+if FEATURE_QIDIRUV_JURNALI:
+    from handlers import qidiruv_jurnali as jurnal
 
 router = Router(name="qidiruv")
 
@@ -46,7 +52,24 @@ async def qidir(message: Message, state: FSMContext):
         )
         return
 
-    if not await db.search_count(soz):
+    topildi = await db.search_count(soz)
+    if jurnal:
+        await jurnal.yoz(soz, message.from_user.id, bool(topildi))
+
+    if not topildi and fuzzy:
+        # LIKE topmadi — xatoga chidamli qidiruvga o'tamiz
+        yaqinlar = await fuzzy.yaqinlari(soz)
+        if yaqinlar:
+            await ui.set_nav(state, "qidiruv_bosh")
+            await ui.screen(
+                message,
+                state,
+                f"🤔 <b>{ui.esc(soz)}</b> topilmadi. Shulardan birini qidirdingizmi?",
+                ui.kb(*[[ui.SERIAL_PREFIX + y["nom"]] for y in yaqinlar], [ui.HOME]),
+            )
+            return
+
+    if not topildi:
         await ui.set_nav(state, "qidiruv_bosh")
         await ui.screen(
             message,

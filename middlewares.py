@@ -7,7 +7,7 @@ from aiogram.dispatcher.event.bases import UNHANDLED
 from aiogram.types import TelegramObject, User
 
 import db
-from config import ADMIN_ID, ANTIFLOOD_INTERVAL
+from config import ADMIN_IDS, ANTIFLOOD_INTERVAL
 
 
 class ActivityMiddleware(BaseMiddleware):
@@ -34,7 +34,7 @@ class AdminOnly(BaseMiddleware):
         data: dict[str, Any],
     ):
         user: User | None = data.get("event_from_user")
-        if user and user.id == ADMIN_ID:
+        if user and user.id in ADMIN_IDS:
             return await handler(event, data)
         return UNHANDLED
 

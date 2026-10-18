@@ -11,7 +11,7 @@ from aiogram.exceptions import TelegramAPIError, TelegramForbiddenError, Telegra
 
 import db
 import ui
-from config import BROADCAST_CHUNK, BROADCAST_PAUSE
+from config import BROADCAST_CHUNK, BROADCAST_PAUSE, FEATURE_KUZATISH
 
 log = logging.getLogger(__name__)
 
@@ -19,6 +19,9 @@ log = logging.getLogger(__name__)
 async def yangi_qism(bot: Bot, serial, qism: int) -> int:
     """Tomoshabinlarga xabar beradi, yuborilganlar sonini qaytaradi."""
     tomoshabinlar = await db.serial_tomoshabinlari(serial["id"])
+    if FEATURE_KUZATISH:
+        # kuzatuvchilar ham qo'shiladi (hali ko'rmagan bo'lsa ham)
+        tomoshabinlar = sorted(set(tomoshabinlar) | set(await db.kuzatuvchilar(serial["id"])))
     if not tomoshabinlar:
         return 0
 

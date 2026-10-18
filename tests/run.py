@@ -45,6 +45,31 @@ HOLATLAR = [
             "ANTIFLOOD_INTERVAL": "0.4",
         },
     ),
+    (
+        "ikkinchi to'plam yoqiq",
+        "tests/test_toplam2.py",
+        {
+            "FEATURE_KANAL_IMPORT": "true",
+            "FEATURE_FUZZY": "true",
+            "FEATURE_BUYRUQLAR": "true",
+            "FEATURE_INLINE": "true",
+            "FEATURE_JURNAL": "true",
+            "FEATURE_SQLITE_FSM": "true",
+            "FEATURE_KORILGAN": "true",
+            "FEATURE_QIDIRUV_JURNALI": "true",
+            "FEATURE_KUZATISH": "true",
+            "FEATURE_FASL": "true",
+            "FEATURE_MANBA": "true",
+            "FEATURE_QISM_ALMASH": "true",
+            "FEATURE_REJA": "true",
+            "FEATURE_BAHO": "true",
+            "FEATURE_KASHFIYOT": "true",
+            "FEATURE_TIL": "true",
+            "FEATURE_CSV": "true",
+            "FEATURE_TUR": "true",
+            "LOG_CHANNEL_ID": "-100555",
+        },
+    ),
 ]
 
 

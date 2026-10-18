@@ -34,6 +34,38 @@ FEATURE_OBUNA = bayroq("FEATURE_OBUNA")                # handlers/obuna.py
 FEATURE_AVTOPOST = bayroq("FEATURE_AVTOPOST")          # handlers/avtopost.py
 FEATURE_ZAXIRA = bayroq("FEATURE_ZAXIRA")              # handlers/zaxira.py
 FEATURE_ANTIFLOOD = bayroq("FEATURE_ANTIFLOOD")        # middlewares.py
+FEATURE_KANAL_IMPORT = bayroq("FEATURE_KANAL_IMPORT")  # handlers/kanal_import.py
+FEATURE_FUZZY = bayroq("FEATURE_FUZZY")                # fuzzy.py
+FEATURE_BUYRUQLAR = bayroq("FEATURE_BUYRUQLAR")        # handlers/buyruqlar.py
+FEATURE_INLINE = bayroq("FEATURE_INLINE")              # handlers/inline.py
+FEATURE_JURNAL = bayroq("FEATURE_JURNAL")              # handlers/jurnal.py
+FEATURE_SQLITE_FSM = bayroq("FEATURE_SQLITE_FSM")      # storage.py
+FEATURE_KORILGAN = bayroq("FEATURE_KORILGAN")          # korilgan.py
+FEATURE_QIDIRUV_JURNALI = bayroq("FEATURE_QIDIRUV_JURNALI")  # handlers/qidiruv_jurnali.py
+FEATURE_KUZATISH = bayroq("FEATURE_KUZATISH")          # handlers/kuzatish.py
+FEATURE_FASL = bayroq("FEATURE_FASL")                  # handlers/fasl.py
+FEATURE_MANBA = bayroq("FEATURE_MANBA")                # handlers/manba.py
+FEATURE_QISM_ALMASH = bayroq("FEATURE_QISM_ALMASH")    # handlers/qism_almash.py
+FEATURE_REJA = bayroq("FEATURE_REJA")                  # handlers/reja.py
+FEATURE_BAHO = bayroq("FEATURE_BAHO")                  # handlers/baho.py
+FEATURE_KASHFIYOT = bayroq("FEATURE_KASHFIYOT")        # handlers/kashfiyot.py
+FEATURE_TIL = bayroq("FEATURE_TIL")                    # handlers/til.py
+FEATURE_CSV = bayroq("FEATURE_CSV")                    # handlers/csv_almash.py
+FEATURE_TUR = bayroq("FEATURE_TUR")                    # handlers/tur.py
+
+# Qo'shimcha adminlar (asosiy ADMIN_ID doim ro'yxatda)
+ADMIN_IDS = [ADMIN_ID] + [
+    int(x) for x in os.getenv("ADMIN_IDS", "").replace(" ", "").split(",") if x.strip().isdigit()
+]
+
+# Jurnal kanali (xatolar va muhim hodisalar); bo'sh bo'lsa ADMIN_ID ga ketadi
+LOG_CHANNEL_ID = int(os.getenv("LOG_CHANNEL_ID", "0") or 0)
+
+# Zaxira nusxasini adminga ham yuborish
+ZAXIRA_ADMINGA = bayroq("ZAXIRA_ADMINGA", "true")
+
+# Chidamli qidiruvda o'xshashlik chegarasi (0..1)
+FUZZY_CHEGARA = float(os.getenv("FUZZY_CHEGARA", "0.6"))
 
 # Majburiy obuna: vergul bilan ajratilgan kanallar (@nom yoki -100...)
 OBUNA_KANALLAR = [k.strip() for k in os.getenv("OBUNA_KANALLAR", "").split(",") if k.strip()]

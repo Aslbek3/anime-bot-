@@ -12,6 +12,11 @@ from aiogram.types import KeyboardButton, Message, ReplyKeyboardMarkup
 
 from config import (
     EPISODES_PER_PAGE,
+    FEATURE_TUR,
+    FEATURE_BAHO,
+    FEATURE_KASHFIYOT,
+    FEATURE_KUZATISH,
+    FEATURE_TIL,
     FEATURE_JANR,
     FEATURE_ROYXATIM,
     FEATURE_TAKLIF,
@@ -41,6 +46,35 @@ JANRLAR = "🏷 Janrlar"                 # FEATURE_JANR
 ULASHISH = "🔗 Ulashish"               # FEATURE_ULASHISH
 TEKSHIRISH = "✅ Tekshirish"           # FEATURE_OBUNA
 JANR_PREFIX = "🏷 "                    # janr tugmalari: "🏷 <janr>"
+KUZATISH = "🔔 Kuzatish"               # FEATURE_KUZATISH
+KUZATMA = "🔕 Kuzatmaslik"
+KUZATGANLARIM = "🔔 Kuzatganlarim"
+YOQDI = "👍"                           # FEATURE_BAHO
+YOQMADI = "👎"
+ENG_YAXSHI = "⭐ Eng yaxshilar"
+TASODIFIY = "🎲 Tasodifiy"             # FEATURE_KASHFIYOT
+YANGILAR = "🆕 Yangilar"
+TIL = "🌐 Til"                         # FEATURE_TIL
+TIL_UZ = "🇺🇿 O'zbekcha"
+TIL_RU = "🇷🇺 Русский"
+FASL_PREFIX = "📂 "                    # FEATURE_FASL: "📂 2-fasl"
+FASL_BELGILASH = "📂 Fasl belgilash"
+KORILGAN_BELGI = "✓ "                  # FEATURE_KORILGAN
+KINOLAR = "🎞 Kinolar"                 # FEATURE_TUR
+SERIALLAR = "📺 Seriallar"
+KORISH = "▶️ Ko'rish"
+TUR_ALMASH = "🎞/📺 Turni almashtirish"
+QISM_NAQSH = r"^(?:✓ )?\d{1,4}-qism$"  # qism tugmasi (✓ bilan ham)
+
+# Admin tomonidagi modul tugmalari
+QIDIRUV_JURNALI = "🔎 So'ralganlar"     # FEATURE_QIDIRUV_JURNALI
+MANBALAR = "📈 Manbalar"               # FEATURE_MANBA
+QISM_ALMASH = "♻️ Qismni almashtirish"  # FEATURE_QISM_ALMASH
+REJA = "⏰ Rejalashtirilgan"            # FEATURE_REJA
+REJA_YANGI = "➕ Yangi reja"
+CSV = "🗂 CSV"                         # FEATURE_CSV
+CSV_EKSPORT = "⬇️ Eksport"
+CSV_IMPORT = "⬆️ Import"
 ROYXAT_PREFIX = "▶️ "                  # ro'yxatim tugmalari: "▶️ <nom> · <N>-qism"
 TAKLIFLAR = "📥 Takliflar"             # FEATURE_TAKLIF (admin)
 YUKLASH = "⬇️ Yuklash"                 # FEATURE_YUKLASH (admin)
@@ -105,24 +139,49 @@ def main_menu_kb(serials, page: int, jami: int, davom=None) -> ReplyKeyboardMark
         qatorlar.append([f"{DAVOM_PREFIX}: {davom['nom']} {davom['oxirgi_qism']}{QISM_SUFFIX}"])
     qatorlar += [[SERIAL_PREFIX + s["nom"]] for s in serials]
     qatorlar.append(page_row(page, jami, SERIALS_PER_PAGE))
-    modul_qatori = []
+    modul_tugmalari = []
     if FEATURE_ROYXATIM:
-        modul_qatori.append(ROYXATIM)
+        modul_tugmalari.append(ROYXATIM)
+    if FEATURE_KUZATISH:
+        modul_tugmalari.append(KUZATGANLARIM)
     if FEATURE_JANR:
-        modul_qatori.append(JANRLAR)
-    if modul_qatori:
-        qatorlar.append(modul_qatori)
+        modul_tugmalari.append(JANRLAR)
+    if FEATURE_BAHO:
+        modul_tugmalari.append(ENG_YAXSHI)
+    if FEATURE_KASHFIYOT:
+        modul_tugmalari += [TASODIFIY, YANGILAR]
+    if FEATURE_TUR:
+        modul_tugmalari += [KINOLAR, SERIALLAR]
+    if FEATURE_TIL:
+        modul_tugmalari.append(TIL)
+    qatorlar += rows(modul_tugmalari, 2)
     if FEATURE_TAKLIF:
         qatorlar.append([TAKLIF_QIL])
     qatorlar.append([MUROJAT])
     return kb(*qatorlar)
 
 
-def serial_kb(episodes, page: int, jami: int) -> ReplyKeyboardMarkup:
-    nomlar = [f"{e['qism_raqami']}{QISM_SUFFIX}" for e in episodes]
+def serial_kb(
+    episodes,
+    page: int,
+    jami: int,
+    qoshimcha: list[list[str]] | None = None,
+    korilgan_chegara: int = 0,
+) -> ReplyKeyboardMarkup:
+    """Qismlar klaviaturasi.
+
+    `qoshimcha` — modullar qo'shadigan qatorlar (fasl, kuzatish, baho).
+    `korilgan_chegara` — shu raqamgacha bo'lgan qismlar ✓ bilan chiziladi.
+    """
+    nomlar = [
+        f"{KORILGAN_BELGI if e['qism_raqami'] <= korilgan_chegara else ''}"
+        f"{e['qism_raqami']}{QISM_SUFFIX}"
+        for e in episodes
+    ]
     return kb(
         *rows(nomlar, 4),
         page_row(page, jami, EPISODES_PER_PAGE),
+        *(qoshimcha or []),
         [ULASHISH] if FEATURE_ULASHISH else [],
         [TO_LIST, HOME],
     )

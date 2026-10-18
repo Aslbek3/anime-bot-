@@ -26,6 +26,24 @@ handlers/
   obuna.py       FEATURE_OBUNA: majburiy obuna (middleware + router)
   avtopost.py    FEATURE_AVTOPOST: kanalga e'lon (routersiz)
   zaxira.py      FEATURE_ZAXIRA: bazani zaxiralash (faqat startup ilgagi)
+  kanal_import.py FEATURE_KANAL_IMPORT: arxiv kanal captionidan avtomatik qo'shish
+  buyruqlar.py   FEATURE_BUYRUQLAR: "/" menyusi (setMyCommands)
+  inline.py      FEATURE_INLINE: inline rejim (@bot <nom>)
+  jurnal.py      FEATURE_JURNAL: xatolar va hodisalar log kanali
+  qidiruv_jurnali.py FEATURE_QIDIRUV_JURNALI: topilmagan so'rovlar
+  kuzatish.py    FEATURE_KUZATISH: 🔔 kuzatish (sevimlilar)
+  baho.py        FEATURE_BAHO: 👍/👎 va eng yaxshilar
+  kashfiyot.py   FEATURE_KASHFIYOT: tasodifiy / yangilar
+  fasl.py        FEATURE_FASL: fasl (season)
+  tur.py         FEATURE_TUR: kino va serialni ajratish
+  til.py         FEATURE_TIL: uz/ru (cheklovi bilan — pastga qarang)
+  manba.py       FEATURE_MANBA: ?start=ref_<manba> kuzatuvi
+  qism_almash.py FEATURE_QISM_ALMASH: qism videosini almashtirish
+  reja.py        FEATURE_REJA: rejalashtirilgan tarqatish
+  csv_almash.py  FEATURE_CSV: CSV import/eksport
+fuzzy.py         FEATURE_FUZZY: xatoga chidamli qidiruv (routersiz)
+korilgan.py      FEATURE_KORILGAN: ko'rilgan qismga ✓ (routersiz)
+storage.py       FEATURE_SQLITE_FSM: FSM holatini SQLite da saqlash
 parsers/
   base.py        parser shartnomasi (qidir / yuklab_ol)
   namuna.py      namuna parser — ishlamaydi, NotImplementedError
@@ -33,7 +51,8 @@ tests/
   run.py         hamma sinovni uchta bayroq holatida ishga tushiradi
   test_ochiq.py  bayroqlar o'chiq — asosiy oqimlar
   test_yoqiq.py  yuklash + taklif
-  test_hammasi.py  barcha modullar yoqiq
+  test_hammasi.py  birinchi to'plam modullari yoqiq
+  test_toplam2.py  ikkinchi to'plam modullari yoqiq
 ```
 
 ## Sinovlar
@@ -73,6 +92,24 @@ Hammasi `config.py` da, `.env` dan o'qiladi, standarti `false`:
 | `FEATURE_AVTOPOST` | `handlers/avtopost.py` | kanalga e'lon (`POST_CHANNEL_ID` kerak) |
 | `FEATURE_ZAXIRA` | `handlers/zaxira.py` | bazani davriy zaxiralash |
 | `FEATURE_ANTIFLOOD` | `middlewares.py` | tez bosishdan himoya |
+| `FEATURE_KANAL_IMPORT` | `handlers/kanal_import.py` | kanal captionidan avtomatik qo'shish |
+| `FEATURE_FUZZY` | `fuzzy.py` | xatoga chidamli qidiruv |
+| `FEATURE_BUYRUQLAR` | `handlers/buyruqlar.py` | "/" menyusi |
+| `FEATURE_INLINE` | `handlers/inline.py` | inline rejim |
+| `FEATURE_JURNAL` | `handlers/jurnal.py` | xatolar + hodisalar jurnali (`LOG_CHANNEL_ID`) |
+| `FEATURE_SQLITE_FSM` | `storage.py` | FSM holati restartdan keyin saqlanadi |
+| `FEATURE_KORILGAN` | `korilgan.py` | ko'rilgan qismga ✓ |
+| `FEATURE_QIDIRUV_JURNALI` | `handlers/qidiruv_jurnali.py` | topilmagan so'rovlar ro'yxati |
+| `FEATURE_KUZATISH` | `handlers/kuzatish.py` | 🔔 kuzatish, bildirishnoma shularga |
+| `FEATURE_FASL` | `handlers/fasl.py` | fasl (season) |
+| `FEATURE_TUR` | `handlers/tur.py` | kino / serial ajratuvi |
+| `FEATURE_MANBA` | `handlers/manba.py` | `?start=ref_<manba>` kuzatuvi |
+| `FEATURE_QISM_ALMASH` | `handlers/qism_almash.py` | qism videosini almashtirish |
+| `FEATURE_REJA` | `handlers/reja.py` | rejalashtirilgan tarqatish |
+| `FEATURE_BAHO` | `handlers/baho.py` | 👍/👎 va eng yaxshilar |
+| `FEATURE_KASHFIYOT` | `handlers/kashfiyot.py` | tasodifiy / yangilar |
+| `FEATURE_TIL` | `handlers/til.py` | uz/ru (qisman) |
+| `FEATURE_CSV` | `handlers/csv_almash.py` | CSV import/eksport |
 
 Bayroq o'chiq bo'lsa:
 
@@ -117,6 +154,48 @@ Namuna parser ataylab `NotImplementedError` qaytaradi: bayroq yoqilsa-yu
 parser yozilmagan bo'lsa, vazifa `holat='xato'` bo'lib yoziladi, navbat
 to'xtamaydi.
 
+## Ikkinchi to'plam: diqqat qiladigan joylar
+
+**Kanal import** (`FEATURE_KANAL_IMPORT`) — arxiv kanaldagi video captioni:
+
+```
+Spartak | 5          -> Spartak serialining 5-qismi
+Spartak | 2x5        -> 2-fasl, 5-qism
+Spartak | 5 | Nomi   -> qism nomi bilan
+Avatar               -> FEATURE_TUR yoqiq bo'lsa: kino (bitta qism)
+```
+
+Serial topilmasa o'zi yaratiladi. Caption formatga tushmasa — tegilmaydi.
+
+**Fasl va yagonalik kaliti.** `episodes` jadvalining UNIQUE kaliti
+`(serial_id, fasl, qism_raqami)`. Eski bazalarda u `(serial_id, qism_raqami)`
+edi va 2-faslning 1-qismi 1-faslnikini ustiga yozib yuborardi; `db.migratsiya()`
+jadvalni qayta qurib, ma'lumotni ko'chiradi (`_episodes_kaliti`). Shuning uchun
+`get_episode`, `prev_next_episode`, `episode_page` larga ixtiyoriy `fasl`
+parametri berilgan: `None` bo'lsa raqam bo'yicha birinchi mos qism olinadi.
+
+**Kino va serial** (`FEATURE_TUR`) — farq faqat `serials.turi` ustunida
+('kino' / 'serial', standart 'serial'). Kino kartochkasida qismlar ro'yxati
+o'rniga bitta "▶️ Ko'rish" tugmasi chiqadi.
+
+**Til** (`FEATURE_TIL`) — bu TO'LIQ i18n emas: tugma matnlari o'zbekcha qoladi,
+chunki routing aynan matn bo'yicha ketadi. Hozircha salomlashuv va bir nechta
+asosiy xabar tarjima qilinadi (`handlers/til.py` dagi `TARJIMA`). To'liq i18n
+uchun tugmalarni kalit bo'yicha yo'naltirish kerak — alohida ish.
+
+**Qidiruv jurnali** — har bir qidiruv `qidiruvlar` jadvaliga yoziladi.
+Admin paneldagi "🔎 So'ralganlar" eng ko'p so'ralgan, lekin topilmagan
+so'rovlarni ko'rsatadi; bu kontent rejasi uchun eng foydali ro'yxat.
+
+**SQLite FSM** (`FEATURE_SQLITE_FSM`) — aiogram da tayyor SQLite storage yo'q,
+shuning uchun `storage.py` da BaseStorage ning ixcham amalga oshirilishi bor
+(`fsm` jadvali). Yoqilsa, restartdan keyin ham nav konteksti saqlanadi va
+"eskirgan ekran" xabari deyarli chiqmaydi.
+
+**Bir nechta admin** — `.env` da `ADMIN_IDS=111,222`. `AdminOnly` middleware
+shu ro'yxat bo'yicha tekshiradi; bildirishnoma/zaxira kabi xabarlar esa asosiy
+`ADMIN_ID` ga ketadi.
+
 ## Yuklash navbati
 
 `yuklash_navbat` jadvali: `manba_url`, `holat`
@@ -137,7 +216,8 @@ to'xtamaydi.
 `CommandStart(deep_link=True)` handleri (oddiy `/start` dan OLDIN turadi):
 
 - `serial_<id>` — serial kartochkasi;
-- `qism_<serial_id>_<n>` — to'g'ridan-to'g'ri o'sha qism videosi.
+- `qism_<serial_id>_<n>` — to'g'ridan-to'g'ri o'sha qism videosi;
+- `ref_<manba>` — reklama manbasini sanaydi (FEATURE_MANBA), so'ng asosiy menyu.
 
 Noto'g'ri yoki ko'rinmaydigan (tasdiqlanmagan) payload bo'lsa asosiy menyu
 ochiladi. Havolani admin panelidan olish mumkin: serialni tahrirlash
@@ -277,3 +357,16 @@ panel ko'rinmasligi, hech qanday xabar o'chirilmasligi.
 - Bayroqsiz tuzatishlar: eskirgan ekran, `upload_video`, qidiruv sahifalash,
   avtomatik migratsiya, `users.faol` bayrog'i.
 - `tests/` repoga ko'chirildi: `python tests/run.py` — uchta bayroq holati.
+
+**2026-10-18 — ikkinchi to'plam: 18 ta modul**
+- Foydalanuvchi: ko'rilgan ✓, kuzatish (sevimlilar), baho va eng yaxshilar,
+  tasodifiy/yangilar, janr emas — kino/serial ajratuvi, fasl, til (qisman),
+  chidamli qidiruv, inline rejim, "/" menyusi.
+- Admin: kanaldan avtoimport, qidiruv jurnali ("so'ralgan, topilmagan"),
+  manba kuzatuvi, qism almashtirish, rejalashtirilgan tarqatish, CSV
+  import/eksport, xatolar jurnali, zaxirani adminga yuborish, bir nechta admin.
+- Barqarorlik: SQLite FSM storage, `episodes` yagonalik kaliti
+  `(serial_id, fasl, qism_raqami)` ga ko'chirildi (ma'lumot yo'qolishi
+  tuzatildi), `db.migratsiya()` jadvalni o'zi qayta quradi.
+- `tests/test_toplam2.py` qo'shildi; `python tests/run.py` endi 4 holatni
+  tekshiradi.

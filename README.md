@@ -74,11 +74,43 @@ va botni qayta ishga tushiring:
 | `FEATURE_AVTOPOST` | yangi serial/qismni kanalga e'lon (`POST_CHANNEL_ID`) |
 | `FEATURE_ZAXIRA` | bazani davriy zaxiralash |
 | `FEATURE_ANTIFLOOD` | tez bosishdan himoya |
+| `FEATURE_KANAL_IMPORT` | kanalga tashlangan videoni caption bo'yicha avtomatik qo'shish |
+| `FEATURE_FUZZY` | xato yozilsa ham topadigan qidiruv |
+| `FEATURE_BUYRUQLAR` | Telegram "/" menyusi |
+| `FEATURE_INLINE` | boshqa chatda `@bot <nom>` |
+| `FEATURE_JURNAL` | xatolar log kanaliga (`LOG_CHANNEL_ID`) |
+| `FEATURE_SQLITE_FSM` | restartdan keyin kontekst saqlanadi |
+| `FEATURE_KORILGAN` | ko'rilgan qismga ✓ |
+| `FEATURE_QIDIRUV_JURNALI` | nima qidirilgan-u topilmagan |
+| `FEATURE_KUZATISH` | 🔔 kuzatish, yangi qismda xabar |
+| `FEATURE_FASL` | fasl (season) |
+| `FEATURE_TUR` | kino va serialni ajratish |
+| `FEATURE_MANBA` | `?start=ref_<manba>` — reklama manbasi |
+| `FEATURE_QISM_ALMASH` | qism videosini almashtirish |
+| `FEATURE_REJA` | rejalashtirilgan tarqatish |
+| `FEATURE_BAHO` | 👍/👎 va ⭐ eng yaxshilar |
+| `FEATURE_KASHFIYOT` | 🎲 tasodifiy, 🆕 yangilar |
+| `FEATURE_TIL` | uz/ru (qisman tarjima) |
+| `FEATURE_CSV` | CSV import/eksport |
 
 ## Havolalar (deeplink)
 
 - `t.me/<bot>?start=serial_<id>` — serial kartochkasi
 - `t.me/<bot>?start=qism_<id>_<n>` — to'g'ridan-to'g'ri qism
+- `t.me/<bot>?start=ref_<manba>` — reklama manbasini sanash (FEATURE_MANBA)
+
+## Kanal importi (FEATURE_KANAL_IMPORT)
+
+Arxiv kanalga videoni tashlab, captionga yozasiz:
+
+```
+Spartak | 5          5-qism
+Spartak | 2x5        2-fasl, 5-qism
+Spartak | 5 | Nomi   qism nomi bilan
+Avatar               kino (FEATURE_TUR yoqiq bo'lsa)
+```
+
+Serial bazada bo'lmasa, o'zi yaratiladi.
 
 ## Sinovlar
 

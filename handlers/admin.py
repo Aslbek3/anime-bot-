@@ -15,6 +15,13 @@ from config import (
     ARCHIVE_CHANNEL_ID,
     FEATURE_AVTOPOST,
     FEATURE_BILDIRISHNOMA,
+    FEATURE_CSV,
+    FEATURE_FASL,
+    FEATURE_MANBA,
+    FEATURE_QIDIRUV_JURNALI,
+    FEATURE_QISM_ALMASH,
+    FEATURE_REJA,
+    FEATURE_TUR,
     FEATURE_TAKLIF,
     FEATURE_YUKLASH,
     BROADCAST_CHUNK,
@@ -91,16 +98,37 @@ class Broadcast(StatesGroup):
 
 def menu_kb():
     # modul tugmalari faqat bayroq yoqilganda chiziladi
+    qoshimcha = []
+    if FEATURE_QIDIRUV_JURNALI:
+        qoshimcha.append(ui.QIDIRUV_JURNALI)
+    if FEATURE_MANBA:
+        qoshimcha.append(ui.MANBALAR)
+    if FEATURE_REJA:
+        qoshimcha.append(ui.REJA)
+    if FEATURE_CSV:
+        qoshimcha.append(ui.CSV)
     return ui.kb(
         [ADD],
         [EP_ADD],
         [EDIT],
+        [ui.QISM_ALMASH] if FEATURE_QISM_ALMASH else [],
         [ui.YUKLASH] if FEATURE_YUKLASH else [],
         [ui.TAKLIFLAR] if FEATURE_TAKLIF else [],
+        *ui.rows(qoshimcha, 2),
         [STAT, BC],
         [MUR],
         [ui.HOME],
     )
+
+
+def maqsad(*nomlar: str):
+    """Filtr: serial tanlash ro'yxati aynan shu maqsad uchun ochilganmi."""
+
+    async def tekshir(message: Message, state: FSMContext) -> bool:
+        malumot = await state.get_data()
+        return malumot.get("nav_maqsad") in nomlar
+
+    return tekshir
 
 
 def step_kb(skip: bool = False):
@@ -114,14 +142,15 @@ async def show_menu(message: Message, state: FSMContext):
     await ui.screen(message, state, MENU_MATN, menu_kb())
 
 
-async def show_picker(message: Message, state: FSMContext, maqsad: str, page: int = 0):
+async def show_picker(message: Message, state: FSMContext, maqsad: str, page: int = 0):  # noqa: F811
     """Serial tanlash ro'yxati (sahifalangan). maqsad: 'eps' yoki 'edit'."""
     jami = await db.count_serials()
     serials = await db.list_serials(page * SERIALS_PER_PAGE, SERIALS_PER_PAGE)
     sarlavha = {
         "eps": "🎬 Qaysi serialga qism qo'shamiz?",
         "edit": "✏️ Qaysi serialni tahrirlaymiz?",
-    }[maqsad]
+        "almash": "♻️ Qaysi serialda qismni almashtiramiz?",
+    }.get(maqsad, "Serialni tanlang:")
     await state.set_state(None)
     await ui.set_nav(state, "a_pick", nav_page=page, nav_maqsad=maqsad)
     await ui.screen(
@@ -245,7 +274,7 @@ async def eps_picker(message: Message, state: FSMContext):
     await show_picker(message, state, "eps")
 
 
-@router.message(F.text.startswith(ui.SERIAL_PREFIX), ui.ekran("a_pick"))
+@router.message(F.text.startswith(ui.SERIAL_PREFIX), ui.ekran("a_pick"), maqsad("eps", "edit"))
 async def picker_tanlov(message: Message, state: FSMContext):
     nom = message.text[len(ui.SERIAL_PREFIX):].strip()
     serial = await db.get_serial_by_name(nom)
@@ -326,8 +355,9 @@ async def show_edit(message: Message, state: FSMContext, serial_id: int):
         await show_picker(message, state, "edit")
         return
     qismlar = await db.count_episodes(serial_id)
+    turi = f" · {serial['turi'] or 'serial'}" if FEATURE_TUR else ""
     matn = (
-        f"✏️ <b>{ui.esc(serial['nom'])}</b>\n"
+        f"✏️ <b>{ui.esc(serial['nom'])}</b>{turi}\n"
         f"Janr: {ui.esc(serial['janr']) or '—'} · Yil: {serial['yil'] or '—'}\n"
         f"Qismlar: {qismlar}\n\n"
         f"{ui.esc(serial['tavsif']) or '<i>tavsif yo`q</i>'}"
@@ -342,6 +372,8 @@ async def show_edit(message: Message, state: FSMContext, serial_id: int):
             ["✏️ Nom", "✏️ Tavsif"],
             ["✏️ Janr", "✏️ Yil", "🖼 Poster"],
             [ui.HAVOLA],
+            [ui.FASL_BELGILASH] if FEATURE_FASL else [],
+            [ui.TUR_ALMASH] if FEATURE_TUR else [],
             [DEL_EPISODES],
             [DEL_SERIAL],
             [ui.ADMIN_BACK, ui.HOME],
